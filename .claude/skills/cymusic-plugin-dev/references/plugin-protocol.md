@@ -24,20 +24,24 @@ if (typeof module.exports.getMusicUrl !== 'function') {
 
 ## 沙箱内可用的 API
 
+**关键事实**：脚本里的 `require` 是 noop，**不能引入任何模块**。所有依赖必须是 RN 全局可用的 Web API。
+
 | 类别 | 可用 | 不可用 |
 |---|---|---|
-| 网络 | `fetch`, `axios`（项目级别注入）| - |
-| 编码 | `btoa`, `atob`, `TextEncoder`, `TextDecoder` | - |
+| 网络 | `fetch` | `axios`（除非自己内联） |
+| 编码 | `btoa`, `atob`, `TextEncoder`, `TextDecoder`, `encodeURIComponent` | - |
 | Buffer | `Buffer`（来自 polyfill） | - |
-| Promise/异步 | `Promise`, `async/await`, `setTimeout` | - |
+| Promise/异步 | `Promise`, `async/await`, `setTimeout`, `setInterval` | - |
 | JSON | `JSON.parse`, `JSON.stringify` | - |
 | URL | `URL`, `URLSearchParams` | - |
-| 字符串 | 全部 ES 标准 | - |
-| 加密 | `crypto-js`（项目注入）| Node `crypto` |
+| 字符串/对象 | 全部 ES 标准 | - |
+| 加密 | - | **`crypto-js` 不可用**（必须自己内联实现） |
 | RN | - | `AsyncStorage`, `Alert`, `Platform` |
 | Node | - | `fs`, `path`, `process`, `child_process` |
 
-**经验法则**：能用 Web 标准 API 就用 Web 标准 API。`fetch` 比 `axios` 更稳。
+**经验法则**：能用 Web 标准 API 就用 Web 标准 API。需要 MD5/AES 时必须把实现代码**内联**到脚本里。
+
+> **注意区分**：`src/helpers/userApi/*.js` 中的 `xiaoqiu.js`、`qq-music-api.js` 等是**项目内置文件**，通过 webpack/metro 打包，可以 `require('axios')`/`require('crypto-js')`。但用户**导入的插件脚本**走 `new Function` 沙箱加载，**不能 require**。借鉴这些文件的**逻辑思路**而非**依赖方式**。
 
 ## 字段定义（元信息）
 
