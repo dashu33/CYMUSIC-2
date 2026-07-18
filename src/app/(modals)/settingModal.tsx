@@ -11,7 +11,10 @@ import myTrackPlayer, {
 	useCurrentQuality,
 } from '@/helpers/trackPlayerIndex'
 import { useThemeColors, useThemeMode } from '@/hooks/useAppTheme'
-import { createMusicApiFromScript, fetchScriptFromUrl } from '@/helpers/userApi/importMusicSource'
+import {
+	createMusicApiFromScript,
+	createMusicApiFromUrl,
+} from '@/helpers/userApi/importMusicSource'
 import PersistStatus from '@/store/PersistStatus'
 import i18n, { changeLanguage, nowLanguage } from '@/utils/i18n'
 import { GlobalState } from '@/utils/stateMapper'
@@ -304,7 +307,7 @@ const MusicSourceMenu = ({ isDelete, onSelectSource }) => {
 const importMusicSourceFromUrl = async () => {
 	Alert.prompt(
 		'导入音源',
-		'请输入音源 URL',
+		'请输入音源脚本 URL，或直接填官网门户地址（例如 https://api.chksz.com/）',
 		[
 			{
 				text: '取消',
@@ -320,9 +323,8 @@ const importMusicSourceFromUrl = async () => {
 					}
 
 					try {
-						const sourceCode = await fetchScriptFromUrl(url)
-						logInfo('获取到的源代码:', sourceCode)
-						const musicApi = await createMusicApiFromScript(sourceCode)
+						const musicApi = await createMusicApiFromUrl(url)
+						logInfo('导入音源成功:', musicApi.name, musicApi.srcUrl)
 						myTrackPlayer.addMusicApi(musicApi)
 						return
 					} catch (error) {
@@ -334,6 +336,8 @@ const importMusicSourceFromUrl = async () => {
 			},
 		],
 		'plain-text',
+		undefined,
+		'https://api.chksz.com/',
 	)
 }
 const importMusicSourceFromFile = async () => {
@@ -436,6 +440,7 @@ const SettingModal = () => {
 				},
 				{ id: '12', title: i18n.t('settings.items.deleteSource'), type: 'value', value: '' },
 				{ id: '8', title: i18n.t('settings.items.importSource'), type: 'value' },
+				{ id: '19', title: i18n.t('settings.items.refreshPortalSource'), type: 'value' },
 			],
 		},
 		{
@@ -618,6 +623,28 @@ const SettingModal = () => {
 	const handleDeleteSource = (sourceId) => {
 		myTrackPlayer.deleteMusicApiById(sourceId)
 	}
+
+	const handleRefreshPortalSource = async () => {
+		setIsLoading(true)
+		try {
+			const result = await myTrackPlayer.refreshPortalMusicApis()
+			const message =
+				result.created > 0
+					? i18n.t('settings.actions.refreshPortal.createdMessage')
+					: `${i18n.t('settings.actions.refreshPortal.successMessage')} (${result.refreshed})`
+			Alert.alert(i18n.t('settings.actions.refreshPortal.success'), message)
+			logInfo('Portal source refresh result:', result)
+		} catch (error) {
+			const errMsg = error instanceof Error ? error.message : String(error)
+			logError('Portal source refresh failed:', errMsg)
+			Alert.alert(
+				i18n.t('settings.actions.refreshPortal.error'),
+				`${i18n.t('settings.actions.refreshPortal.errorMessage')}: ${errMsg}`,
+			)
+		} finally {
+			setIsLoading(false)
+		}
+	}
 	const checkForUpdates = async () => {
 		setIsLoading(true)
 		const timeoutPromise = new Promise((_, reject) =>
@@ -712,6 +739,8 @@ const SettingModal = () => {
 						checkForUpdates()
 					} else if (item.title === i18n.t('settings.items.clearCache')) {
 						handleClearCache()
+					} else if (item.title === i18n.t('settings.items.refreshPortalSource')) {
+						handleRefreshPortalSource()
 					}
 				}}
 			>

@@ -21,6 +21,7 @@
 			"deleteSource": "删除音源",
 			"selectDelete": "选择删除",
 			"importSource": "导入音源",
+			"refreshPortalSource": "刷新门户音源",
 			"currentQuality": "当前音质",
 			"changeLanguage": "切换语言",
 			"theme": "主题",
@@ -72,6 +73,13 @@
 				"successMessage": "缓存已清理",
 				"error": "失败",
 				"errorMessage": "缓存清理失败"
+			},
+			"refreshPortal": {
+				"success": "刷新成功",
+				"successMessage": "已重新抓取官网接口",
+				"createdMessage": "未找到门户音源，已自动安装 https://api.chksz.com/",
+				"error": "刷新失败",
+				"errorMessage": "无法刷新门户音源"
 			},
 			"delete": {
 				"delete": "删除",
@@ -160,7 +168,6 @@
 		"removeFromPlayingList": "从播放列表移除",
 		"showArtist": "查看歌手",
 		"addToPlaylist": "添加到歌单",
-
 		"delete": "删除"
 	}
 }

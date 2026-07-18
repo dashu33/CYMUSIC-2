@@ -21,6 +21,7 @@
 			"deleteSource": "Delete Source",
 			"selectDelete": "Select Delete",
 			"importSource": "Import Source",
+			"refreshPortalSource": "Refresh Portal Source",
 			"currentQuality": "Current Quality",
 			"changeLanguage": "Change Language",
 			"theme": "Theme",
@@ -71,6 +72,13 @@
 				"successMessage": "Cache has been cleared",
 				"error": "Failed",
 				"errorMessage": "Failed to clear cache"
+			},
+			"refreshPortal": {
+				"success": "Refresh Success",
+				"successMessage": "Portal APIs refreshed from official site",
+				"createdMessage": "No portal source found, installed https://api.chksz.com/",
+				"error": "Refresh Failed",
+				"errorMessage": "Unable to refresh portal source"
 			},
 			"delete": {
 				"delete": "Delete",

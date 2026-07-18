@@ -13,6 +13,41 @@
   <img src="https://img.shields.io/badge/CI-passing-success" alt="CI" />
 </p>
 
+
+## CYMUSIC-2 本地魔改更新
+
+本仓库基于官方 [gyc-12/Cymusic](https://github.com/gyc-12/Cymusic) 继续开发，主要增加 **ChKSz 门户自适应音源**。
+
+### 新增能力
+
+- 支持只填官网地址导入音源：`https://api.chksz.com/`
+- 启动 / 切换音源时自动重新抓取门户页接口
+- 设置页新增「刷新门户音源」一键刷新
+- 播放时多源兜底：
+  1. QQ mid 直解析
+  2. QQ 歌名歌手搜索
+  3. 网易云搜索 + 音质降级
+  4. 酷狗搜索解析
+- 搜索匹配增强：
+  - 歌手必须命中
+  - 惩罚 cover/remix/live/翻唱/脏歌手名
+  - 多关键词搜索策略
+
+### 相关文件
+
+- `sources/chksz-portal.js`：可直接导入的门户音源脚本
+- `sources/README-chksz.md`：使用说明
+- `src/helpers/userApi/chkszPortalSource.ts`：门户识别与脚本自动生成
+- `src/helpers/userApi/importMusicSource.ts`：URL/HTML 导入识别
+- `src/helpers/trackPlayerIndex.ts`：启动刷新 / 一键刷新
+- `src/app/(modals)/settingModal.tsx`：设置页入口
+
+### 使用方式
+
+1. 设置 → 导入音源 → 从 URL 导入
+2. 填入：`https://api.chksz.com/`
+3. 接口变更后点击：设置 → 刷新门户音源
+
 ##  简介
 
 代码未内置源。可以导入自定义源，注意导入的音乐源的安全可靠性。仅供学习交流使用，请勿用于商业用途，如有侵权请联系删除。
@@ -154,3 +189,4 @@ npx expo run:ios
 ## ⭐ Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=gyc-12/Cymusic&type=Date)](https://www.star-history.com/#gyc-12/Cymusic&Date)
+

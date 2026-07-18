@@ -37,6 +37,7 @@ import { nowLanguage } from '@/utils/i18n'
 import { showToast } from '@/utils/utils'
 import { logError, logInfo } from './logger'
 import { isLxMusicScript, reloadLxMusicScript } from './userApi/lxMusicSourceAdapter'
+import { createChkszPortalMusicApi, isChkszPortalUrl } from './userApi/chkszPortalSource'
 
 import {
 	currentMusicStore,
@@ -699,6 +700,20 @@ const reloadMusicApi = async (musicApi: IMusic.MusicApi, isTest: boolean = false
 	}
 
 	try {
+		// 门户自适应音源：启动/切换时自动重新抓取官网接口
+		if (
+			musicApi.portalType === 'chksz' ||
+			musicApi.id === 'chksz-portal' ||
+			isChkszPortalUrl(musicApi.srcUrl)
+		) {
+			const refreshed = await createChkszPortalMusicApi(musicApi.srcUrl || 'https://api.chksz.com/')
+			return {
+				...musicApi,
+				...refreshed,
+				isSelected: musicApi.isSelected,
+			}
+		}
+
 		// 检测是否为 lx-music 格式脚本
 		if (musicApi.scriptType === 'lxmusic' || isLxMusicScript(musicApi.script)) {
 			return await reloadLxMusicScript(musicApi)
@@ -775,6 +790,70 @@ const deleteMusicApiById = (musicApiId: string) => {
 	Alert.alert('成功', '音源删除成功', [
 		{ text: '确定', onPress: () => logInfo('Add alert closed') },
 	])
+}
+
+const refreshPortalMusicApis = async () => {
+	const musicApis = musicApiStore.getValue() || []
+	const portalApis = musicApis.filter(
+		(api) =>
+			api.portalType === 'chksz' ||
+			api.id === 'chksz-portal' ||
+			isChkszPortalUrl(api.srcUrl),
+	)
+
+	if (!portalApis.length) {
+		// 没有门户源时，直接安装默认官网门户源
+		const created = await createChkszPortalMusicApi('https://api.chksz.com/')
+		const updatedList = [...musicApis, created]
+		musicApiStore.setValue(updatedList)
+		PersistStatus.set('music.musicApi', updatedList)
+		if (!musicApiSelectedStore.getValue()) {
+			await setMusicApiAsSelectedById(created.id)
+		}
+		logInfo('Installed default ChKSz portal source')
+		return {
+			refreshed: 1,
+			created: 1,
+			selectedName: musicApiSelectedStore.getValue()?.name || created.name,
+		}
+	}
+
+	const selected = musicApiSelectedStore.getValue()
+	const refreshedMap = new Map<string, IMusic.MusicApi>()
+
+	for (const api of portalApis) {
+		const refreshed = await createChkszPortalMusicApi(api.srcUrl || 'https://api.chksz.com/')
+		refreshedMap.set(api.id, {
+			...api,
+			...refreshed,
+			// 保持原 id，避免刷新后变成“新源”
+			id: api.id,
+			isSelected: api.isSelected,
+		})
+	}
+
+	const updatedList = musicApis.map((api) => refreshedMap.get(api.id) || api)
+	musicApiStore.setValue(updatedList)
+	PersistStatus.set('music.musicApi', updatedList)
+
+	if (selected && refreshedMap.has(selected.id)) {
+		const reloaded = await reloadMusicApi(
+			{
+				...refreshedMap.get(selected.id)!,
+				isSelected: true,
+			},
+			true,
+		)
+		musicApiSelectedStore.setValue(reloaded)
+		PersistStatus.set('music.selectedMusicApi', reloaded)
+	}
+
+	logInfo(`Refreshed ${refreshedMap.size} ChKSz portal source(s)`)
+	return {
+		refreshed: refreshedMap.size,
+		created: 0,
+		selectedName: musicApiSelectedStore.getValue()?.name || portalApis[0].name,
+	}
 }
 const play = async (musicItem?: IMusic.IMusicItem | null, forcePlay?: boolean) => {
 	let trackSourceLoadingToken: string | null = null
@@ -1175,6 +1254,7 @@ const myTrackPlayer = {
 	addMusicApi,
 	setMusicApiAsSelectedById,
 	deleteMusicApiById,
+	refreshPortalMusicApis,
 	addSongToStoredPlayList,
 	deleteSongFromStoredPlayList,
 	addImportedLocalMusic,
