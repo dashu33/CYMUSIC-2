@@ -3,7 +3,7 @@ import { logError, logInfo } from '@/helpers/logger'
 import PersistStatus from '@/store/PersistStatus'
 import { showToast } from '@/utils/utils'
 import RNFS from 'react-native-fs'
-import { isCached, getLocalFilePath } from './CacheManager'
+import { findCachedFilePath } from './CacheManager'
 import { musicApiSelectedStore, nowApiState, qualityStore } from './PlayerStore'
 
 export type SourceResult = {
@@ -106,12 +106,11 @@ export const resolveSource = async (
 		return { url: musicItem.url, wasCached: false }
 	}
 
-	const cached = await isCached(musicItem)
-	if (cached) {
-		const localPath = getLocalFilePath(musicItem)
+	const cachedPath = await findCachedFilePath(musicItem)
+	if (cachedPath) {
 		preloadCache.delete(preloadKey)
-		logInfo('使用缓存的音频路径播放:', localPath)
-		return { url: localPath, wasCached: true }
+		logInfo('使用缓存的音频路径播放:', cachedPath)
+		return { url: cachedPath, wasCached: true }
 	}
 
 	// 只在本地与磁盘缓存都未命中时，才复用预加载的远端音源

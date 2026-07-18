@@ -1,15 +1,14 @@
 diff --git a/node_modules/expo-localization/ios/LocalizationModule.swift b/node_modules/expo-localization/ios/LocalizationModule.swift
-index 42a7476..4542fc6 100644
+index 42a7476..b1c8e2a 100644
 --- a/node_modules/expo-localization/ios/LocalizationModule.swift
 +++ b/node_modules/expo-localization/ios/LocalizationModule.swift
-@@ -112,6 +112,11 @@ public class LocalizationModule: Module {
+@@ -112,6 +112,10 @@ public class LocalizationModule: Module {
        return "roc"
      case .iso8601:
        return "iso8601"
-+    case .dangi:
-+      return "dangi"
 +    @unknown default:
-+      // Keep build compatibility with newer SDK enum cases.
++      // Forward-compat for newer Calendar.Identifier cases without naming them.
++      // Matching unknown cases like .dangi breaks older Xcode SDKs.
 +      return "gregory"
      }
    }

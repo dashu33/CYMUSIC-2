@@ -63,6 +63,12 @@ import {
 	getLocalFilePath,
 	ensureCacheDirExists,
 	ensureDirExists,
+	listCachedMusic,
+	deleteCachedMusic,
+	getCacheSizeBytes,
+	formatCacheSize,
+	getLocalAndCachedMusic,
+	isCacheFileUrl,
 } from '@/player/CacheManager'
 
 import { resolveSource, preloadSource } from '@/player/MusicSourceResolver'
@@ -981,36 +987,24 @@ const cacheAndImportMusic = async (track: IMusic.IMusicItem) => {
 		await ensureCacheDirExists()
 		const localPath = getLocalFilePath(track)
 		console.log('localPath:', localPath)
-		const isCacheExist = await RNFS.exists(localPath)
-		if (isCacheExist) {
+		const alreadyCached = await isCached(track)
+		if (alreadyCached) {
 			logInfo('音乐已缓存到本地:', localPath)
-			const newTrack = { ...track, url: `file://${localPath}` }
+			const newTrack = { ...track, url: localPath.startsWith('file://') ? localPath : `file://${localPath}` }
 			await addImportedLocalMusic([newTrack], false)
 		} else {
 			logInfo('开始下载音乐:', track.url)
-			const downloadResult = await RNFS.downloadFile({
-				fromUrl: track.url,
-				toFile: localPath,
-				progressDivider: 1,
-				progress: (res) => {
-					const progress = res.bytesWritten / res.contentLength
-					logInfo(`下载进度: ${(progress * 100).toFixed(2)}%`)
-				},
-			}).promise
-
-			if (downloadResult.statusCode === 200) {
-				logInfo('音乐已缓存到本地:', `${localPath}`)
-				const newTrack = { ...track, url: `${localPath}` }
-				await addImportedLocalMusic([newTrack], false)
-			} else {
-				throw new Error(`下载失败，状态码: ${downloadResult.statusCode}`)
+			const downloadedPath = await downloadToCache(track)
+			const newTrack = {
+				...track,
+				url: downloadedPath.startsWith('file://') ? downloadedPath : `file://${downloadedPath}`,
 			}
+			await addImportedLocalMusic([newTrack], false)
 		}
 
 		Alert.alert('成功', '音乐已缓存到本地', [{ text: '确定', onPress: () => {} }])
 	} catch (error) {
 		logError('缓存音乐时出错:', error)
-		// await addImportedLocalMusic([track], false)
 	}
 }
 
@@ -1182,21 +1176,31 @@ const addImportedLocalMusic = async (musicItem: IMusic.IMusicItem[], isAlert: bo
 		logError('本地音乐保存时出错:', error)
 	}
 }
-const deleteImportedLocalMusic = (musicItemsIdToDelete: string) => {
+const deleteImportedLocalMusic = async (musicItemsIdToDelete: string) => {
 	try {
 		const importedLocalMusic = importedLocalMusicStore.getValue() || []
+		const target = importedLocalMusic.find(
+			(item) => String(item.id) === String(musicItemsIdToDelete),
+		)
 		let fileUri = ''
 		const updatedImportedLocalMusic = importedLocalMusic.filter((item) => {
-			if (musicItemsIdToDelete === item.id) {
+			if (String(musicItemsIdToDelete) === String(item.id)) {
 				fileUri = item.url
 			}
-			return musicItemsIdToDelete !== item.id
+			return String(musicItemsIdToDelete) !== String(item.id)
 		})
 		importedLocalMusicStore.setValue(updatedImportedLocalMusic)
 		PersistStatus.set('music.importedLocalMusic', updatedImportedLocalMusic)
-		//同时删除本地文
-		FileSystem.deleteAsync(fileUri)
-		// Alert.alert('成功', '音乐删除成功', [{ text: '确定', onPress: () => {} }])
+
+		// 缓存目录中的文件走统一删除逻辑（含 sidecar 元数据）
+		if (target && isCacheFileUrl(target.url)) {
+			await deleteCachedMusic(target)
+			return
+		}
+
+		if (fileUri) {
+			await FileSystem.deleteAsync(fileUri, { idempotent: true })
+		}
 	} catch (error) {
 		logError('删除本地音乐时出错:', error)
 	}
@@ -1269,6 +1273,12 @@ const myTrackPlayer = {
 	getPreviousMusic,
 	getNextMusic,
 	clearCache,
+	listCachedMusic,
+	deleteCachedMusic,
+	getCacheSizeBytes,
+	formatCacheSize,
+	getLocalAndCachedMusic,
+	isCacheFileUrl,
 	toggleAutoCacheLocal,
 	cacheAndImportMusic,
 	isCached,

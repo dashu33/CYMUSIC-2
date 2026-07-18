@@ -11,15 +11,28 @@ import { useDefaultStyles } from '@/styles'
 import i18n from '@/utils/i18n'
 import MusicInfo from '@/utils/musicInfo'
 import * as DocumentPicker from 'expo-document-picker'
-import React, { useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, View } from 'react-native'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+	ActivityIndicator,
+	Alert,
+	Image,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from 'react-native'
 import { Track } from 'react-native-track-player'
+import { useFocusEffect } from 'expo-router'
+
 const LocalMusicScreen = () => {
 	const colors = useThemeColors()
 	const defaultStyles = useDefaultStyles()
 	const styles = useMemo(() => createStyles(colors), [colors])
-	const localTracks = importedLocalMusicStore.useValue() || []
+	const importedTracks = importedLocalMusicStore.useValue() || []
+	const [displayTracks, setDisplayTracks] = useState<IMusic.IMusicItem[]>([])
+	const [cacheSizeLabel, setCacheSizeLabel] = useState('0 B')
 	const [isLoading, setIsLoading] = useState(false)
+
 	const playListItem = {
 		name: 'Local',
 		id: 'local',
@@ -31,42 +44,76 @@ const LocalMusicScreen = () => {
 	const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
 	const [selectedTracks, setSelectedTracks] = useState<Set<string>>(new Set())
 
+	const refreshList = useCallback(async () => {
+		try {
+			const [merged, sizeBytes] = await Promise.all([
+				myTrackPlayer.getLocalAndCachedMusic(),
+				myTrackPlayer.getCacheSizeBytes(),
+			])
+			setDisplayTracks(merged)
+			setCacheSizeLabel(myTrackPlayer.formatCacheSize(sizeBytes))
+		} catch (error) {
+			logError('刷新本地/缓存列表失败:', error)
+		}
+	}, [])
+
+	// 导入列表变化时同步
+	useEffect(() => {
+		refreshList()
+	}, [importedTracks, refreshList])
+
+	// 页面聚焦时重新扫描磁盘缓存（自动缓存可能不在 imported 列表中）
+	useFocusEffect(
+		useCallback(() => {
+			refreshList()
+		}, [refreshList]),
+	)
+
 	const toggleMultiSelectMode = () => {
 		setIsMultiSelectMode(!isMultiSelectMode)
 		setSelectedTracks(new Set())
 	}
-	const deleteSelectedTracks = () => {
-		selectedTracks.forEach((trackId) => {
-			myTrackPlayer.deleteImportedLocalMusic(trackId)
-		})
+
+	const deleteSelectedTracks = async () => {
+		const ids = Array.from(selectedTracks)
+		for (const trackId of ids) {
+			const track = displayTracks.find((t) => String(t.id) === String(trackId))
+			if (track && myTrackPlayer.isCacheFileUrl(track.url)) {
+				await myTrackPlayer.deleteCachedMusic(track)
+			} else {
+				await myTrackPlayer.deleteImportedLocalMusic(trackId)
+			}
+		}
 		setSelectedTracks(new Set())
 		setIsMultiSelectMode(false)
+		await refreshList()
 	}
+
 	const toggleSelectAll = () => {
-		if (!localTracks || !Array.isArray(localTracks)) {
-			// 如果 localTracks 未定义或不是数组，直接返回
+		if (!displayTracks || !Array.isArray(displayTracks)) {
 			return
 		}
-		if (selectedTracks.size === localTracks.length) {
-			// 如果当前所有曲目都被选中，则取消全选
+		if (selectedTracks.size === displayTracks.length) {
 			setSelectedTracks(new Set())
 		} else {
-			// 否则，选择所有曲目
-			const allTrackIds = new Set(localTracks.map((track) => track.id))
+			const allTrackIds = new Set(displayTracks.map((track) => String(track.id)))
 			setSelectedTracks(allTrackIds)
 		}
 	}
+
 	const toggleTrackSelection = (trackId: string) => {
 		setSelectedTracks((prevSelected) => {
 			const newSelected = new Set(prevSelected)
-			if (newSelected.has(trackId)) {
-				newSelected.delete(trackId)
+			const key = String(trackId)
+			if (newSelected.has(key)) {
+				newSelected.delete(key)
 			} else {
-				newSelected.add(trackId)
+				newSelected.add(key)
 			}
 			return newSelected
 		})
 	}
+
 	const exportSelectedTracks = async () => {
 		if (selectedTracks.size === 0) {
 			Alert.alert('提示', '请先选择要导出的歌曲')
@@ -80,6 +127,7 @@ const LocalMusicScreen = () => {
 			Alert.alert('错误', '导出过程中出现错误，请重试。')
 		}
 	}
+
 	const importLocalMusic = async () => {
 		try {
 			setIsLoading(true)
@@ -111,8 +159,6 @@ const LocalMusicScreen = () => {
 							picture: true,
 						})
 
-						// console.log('文件元数据:', metadata)
-
 						return {
 							id: file.uri,
 							title: metadata?.title || file.name || '未知标题',
@@ -121,21 +167,17 @@ const LocalMusicScreen = () => {
 							artwork: unknownTrackImageUri,
 							url: file.uri,
 							platform: 'local',
-							duration: 0, // 如果 MusicInfo 能提供持续时间，可以在这里使用
+							duration: 0,
 							genre: file.name || '',
 						}
 					}),
 			)
-			// console.log('newTracks:', newTracks)
 			if (newTracks.length === 0) {
 				console.log('没有新导入的音轨')
-				// Alert.alert('提示', '没有新的音乐被导入。可能是因为所选文件已存在或不是支持的音频格式。')
 				setIsLoading(false)
 				return
 			}
 
-			// console.log('新导入的音轨:', newTracks)
-			// 批量处理新导入的音轨
 			const processedTracks = await Promise.all(
 				newTracks.map(async (track) => {
 					if (track.title !== '未知标题') {
@@ -162,10 +204,7 @@ const LocalMusicScreen = () => {
 			)
 
 			console.log('处理后的音轨:', processedTracks)
-
-			// setLocalTracks((prevTracks) => [...prevTracks, ...newTracks])
 			myTrackPlayer.addImportedLocalMusic(processedTracks)
-			// logInfo('导入的本地音乐:', newTracks)
 		} catch (err) {
 			logError('导入本地音乐时出错:', err)
 		} finally {
@@ -173,13 +212,27 @@ const LocalMusicScreen = () => {
 		}
 	}
 
-	function deleteLocalMusic(trackId: string): void {
-		myTrackPlayer.deleteImportedLocalMusic(trackId)
+	async function deleteLocalMusic(trackId: string): Promise<void> {
+		const track = displayTracks.find((t) => String(t.id) === String(trackId))
+		try {
+			if (track && myTrackPlayer.isCacheFileUrl(track.url)) {
+				await myTrackPlayer.deleteCachedMusic(track)
+			} else {
+				await myTrackPlayer.deleteImportedLocalMusic(trackId)
+			}
+			await refreshList()
+		} catch (error) {
+			logError('删除本地/缓存歌曲失败:', error)
+			Alert.alert(
+				i18n.t('settings.actions.cache.error'),
+				i18n.t('settings.actions.cache.deleteErrorMessage'),
+			)
+		}
 	}
 
 	return (
 		<View style={defaultStyles.container}>
-			{isLoading && (
+			{(isLoading) && (
 				<View style={styles.loadingOverlay}>
 					<ActivityIndicator size="large" color={colors.loading} />
 				</View>
@@ -188,9 +241,12 @@ const LocalMusicScreen = () => {
 				contentInsetAdjustmentBehavior="automatic"
 				style={{ paddingHorizontal: screenPadding.horizontal }}
 			>
+				<Text style={styles.cacheHint}>
+					{i18n.t('appTab.cacheSizeLabel', { size: cacheSizeLabel })}
+				</Text>
 				<PlaylistTracksList
 					playlist={playListItem as Playlist}
-					tracks={localTracks as Track[]}
+					tracks={displayTracks as Track[]}
 					showImportMenu={true}
 					onImportTrack={importLocalMusic}
 					allowDelete={true}
@@ -207,24 +263,33 @@ const LocalMusicScreen = () => {
 		</View>
 	)
 }
+
 const createStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-	loadingOverlay: {
-		position: 'absolute',
-		left: 0,
-		right: 0,
-		top: 0,
-		bottom: 0,
-		alignItems: 'center',
-		justifyContent: 'center',
-		backgroundColor: colors.overlay,
-		zIndex: 1000,
-	},
-	header: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		padding: 10,
-	},
+		loadingOverlay: {
+			position: 'absolute',
+			left: 0,
+			right: 0,
+			top: 0,
+			bottom: 0,
+			alignItems: 'center',
+			justifyContent: 'center',
+			backgroundColor: colors.overlay,
+			zIndex: 1000,
+		},
+		header: {
+			flexDirection: 'row',
+			justifyContent: 'space-between',
+			alignItems: 'center',
+			padding: 10,
+		},
+		cacheHint: {
+			color: colors.textMuted,
+			fontSize: 13,
+			opacity: 0.9,
+			marginBottom: 8,
+			marginTop: 4,
+		},
 	})
+
 export default LocalMusicScreen

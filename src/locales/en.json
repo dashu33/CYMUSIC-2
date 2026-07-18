@@ -12,6 +12,7 @@
 			"checkUpdate": "Check for Updates",
 			"projectLink": "Project Link",
 			"clearCache": "Clear Cache",
+			"cacheSize": "Cache Size",
 			"viewLogs": "View Logs",
 			"clearPlaylist": "Clear Playlist",
 			"autoCacheLocal": "Auto Cache Songs Locally",
@@ -71,7 +72,12 @@
 				"success": "Success",
 				"successMessage": "Cache has been cleared",
 				"error": "Failed",
-				"errorMessage": "Failed to clear cache"
+				"errorMessage": "Failed to clear cache",
+				"deleteErrorMessage": "Failed to delete cached song",
+				"confirmTitle": "Clear Cache",
+				"confirmMessage": "Clear all audio cache? Currently using {{size}}. Manually imported non-cache files will be kept.",
+				"cancel": "Cancel",
+				"confirm": "Clear"
 			},
 			"refreshPortal": {
 				"success": "Refresh Success",
@@ -109,7 +115,8 @@
 		"radio": "Radio",
 		"favorites": "Favorites",
 		"favoritesSongs": "Favorite Songs",
-		"localOrCachedSongs": "Local/Cached Songs"
+		"localOrCachedSongs": "Local/Cached Songs",
+		"cacheSizeLabel": "Audio cache size: {{size}}"
 	},
 	"addToPlaylist": {
 		"title": "Import Playlist",

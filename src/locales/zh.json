@@ -12,6 +12,7 @@
 			"checkUpdate": "检查更新",
 			"projectLink": "项目链接",
 			"clearCache": "清空缓存",
+			"cacheSize": "缓存占用",
 			"viewLogs": "查看日志",
 			"clearPlaylist": "清空待播清单",
 			"autoCacheLocal": "自动缓存歌曲到本地",
@@ -72,7 +73,12 @@
 				"success": "成功",
 				"successMessage": "缓存已清理",
 				"error": "失败",
-				"errorMessage": "缓存清理失败"
+				"errorMessage": "缓存清理失败",
+				"deleteErrorMessage": "删除缓存失败",
+				"confirmTitle": "清空缓存",
+				"confirmMessage": "确定清空全部音频缓存吗？当前占用 {{size}}。本地导入的非缓存文件不会被删除。",
+				"cancel": "取消",
+				"confirm": "清空"
 			},
 			"refreshPortal": {
 				"success": "刷新成功",
@@ -110,7 +116,8 @@
 		"radio": "广播",
 		"favorites": "收藏",
 		"favoritesSongs": "喜欢的歌曲",
-		"localOrCachedSongs": "本地/缓存的歌曲"
+		"localOrCachedSongs": "本地/缓存的歌曲",
+		"cacheSizeLabel": "音频缓存占用：{{size}}"
 	},
 	"addToPlaylist": {
 		"title": "导入歌单",

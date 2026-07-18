@@ -373,11 +373,26 @@ const SettingModal = () => {
 	const router = useRouter()
 	const [currentQuality, setCurrentQuality] = useCurrentQuality()
 	const [isLoading, setIsLoading] = useState(false)
+	const [cacheSizeLabel, setCacheSizeLabel] = useState('…')
 	const apiState = nowApiState.useValue()
 	const language = nowLanguage.useValue()
 	const autoCacheLocal = autoCacheLocalStore.useValue()
 	const isCachedIconVisible = isCachedIconVisibleStore.useValue()
 	const songsNumsToLoad = songsNumsToLoadStore.useValue()
+
+	const refreshCacheSize = async () => {
+		try {
+			const bytes = await myTrackPlayer.getCacheSizeBytes()
+			setCacheSizeLabel(myTrackPlayer.formatCacheSize(bytes))
+		} catch {
+			setCacheSizeLabel('—')
+		}
+	}
+
+	useEffect(() => {
+		refreshCacheSize()
+	}, [])
+
 	const themeLabel = useMemo(() => {
 		switch (themeMode) {
 			case 'light':
@@ -396,7 +411,12 @@ const SettingModal = () => {
 				{ id: '2', title: i18n.t('settings.items.version'), type: 'value', value: CURRENT_VERSION },
 				{ id: '3', title: i18n.t('settings.items.checkUpdate'), type: 'value' },
 				{ id: '5', title: i18n.t('settings.items.projectLink'), type: 'value', value: '' },
-				{ id: '9', title: i18n.t('settings.items.clearCache'), type: 'value', value: '' },
+				{
+					id: '9',
+					title: i18n.t('settings.items.clearCache'),
+					type: 'value',
+					value: cacheSizeLabel,
+				},
 				{ id: '13', title: i18n.t('settings.items.viewLogs'), type: 'link' },
 				{
 					id: '15',
@@ -549,20 +569,34 @@ const SettingModal = () => {
 			</View>
 		)
 	}
-	const handleClearCache = async () => {
-		try {
-			await myTrackPlayer.clearCache()
-			Alert.alert(
-				i18n.t('settings.actions.cache.success'),
-				i18n.t('settings.actions.cache.successMessage'),
-			)
-		} catch (error) {
-			Alert.alert(
-				i18n.t('settings.actions.cache.error'),
-				i18n.t('settings.actions.cache.errorMessage'),
-			)
-			console.error(error)
-		}
+	const handleClearCache = () => {
+		Alert.alert(
+			i18n.t('settings.actions.cache.confirmTitle'),
+			i18n.t('settings.actions.cache.confirmMessage', { size: cacheSizeLabel }),
+			[
+				{ text: i18n.t('settings.actions.cache.cancel'), style: 'cancel' },
+				{
+					text: i18n.t('settings.actions.cache.confirm'),
+					style: 'destructive',
+					onPress: async () => {
+						try {
+							await myTrackPlayer.clearCache()
+							await refreshCacheSize()
+							Alert.alert(
+								i18n.t('settings.actions.cache.success'),
+								i18n.t('settings.actions.cache.successMessage'),
+							)
+						} catch (error) {
+							Alert.alert(
+								i18n.t('settings.actions.cache.error'),
+								i18n.t('settings.actions.cache.errorMessage'),
+							)
+							console.error(error)
+						}
+					},
+				},
+			],
+		)
 	}
 	const handleSelectSource = (sourceId) => {
 		myTrackPlayer.setMusicApiAsSelectedById(sourceId)
