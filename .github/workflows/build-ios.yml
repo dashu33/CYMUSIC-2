@@ -45,9 +45,17 @@ jobs:
 
       - name: Package IPA
         run: |
+          set -euo pipefail
+          rm -rf Payload CyMusic-unsigned.ipa
           mkdir -p Payload
-          cp -r ios/build/Build/Products/Release-iphoneos/CyMusic.app Payload/
-          zip -r CyMusic-unsigned.ipa Payload/
+          # ditto preserves app bundle structure better than cp -r for IPA packaging
+          ditto ios/build/Build/Products/Release-iphoneos/CyMusic.app Payload/CyMusic.app
+          test -f Payload/CyMusic.app/Info.plist
+          test -f Payload/CyMusic.app/CyMusic
+          # Create IPA from parent dir so archive root is exactly Payload/
+          ditto -c -k --sequesterRsrc --keepParent Payload CyMusic-unsigned.ipa
+          # Sanity: ensure Info.plist is at expected path inside zip
+          unzip -l CyMusic-unsigned.ipa | grep -q 'Payload/CyMusic.app/Info.plist'
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
